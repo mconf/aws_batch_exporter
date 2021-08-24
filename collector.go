@@ -13,15 +13,23 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+var DescribeJobQueuesWithContext = func(c *Collector, ctx context.Context, input *batch.DescribeJobQueuesInput) (*batch.DescribeJobQueuesOutput, error) {
+	return c.client.DescribeJobQueuesWithContext(ctx, input)
+}
+
+var ListJobsWithContext = func(c *Collector, ctx context.Context, input *batch.ListJobsInput) (*batch.ListJobsOutput, error) {
+	return c.client.ListJobsWithContext(ctx, input)
+}
+
 type Collector struct {
-	client batchiface.BatchAPI
-	region string
+	client  batchiface.BatchAPI
+	region  string
 	timeout time.Duration
 }
 
 const (
 	namespace = "aws_batch"
-	timeout = 10 * time.Second
+	timeout   = 10 * time.Second
 )
 
 var (
@@ -36,63 +44,62 @@ var (
 	}
 
 	jobSubmitted = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, "", "submitted_job"),
-		"Job in the queue that are in the SUBMITTED state",
-		[]string{"region", "id", "queue", "name"}, nil,
+		prometheus.BuildFQName(namespace, "", "submitted_jobs"),
+		"Jobs in the queue that are in the SUBMITTED state",
+		[]string{"region", "queue"}, nil,
 	)
 
 	jobPending = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, "", "pending_job"),
-		"Job in the queue that are in the PENDING state",
-		[]string{"region", "id", "queue", "name"}, nil,
+		prometheus.BuildFQName(namespace, "", "pending_jobs"),
+		"Jobs in the queue that are in the PENDING state",
+		[]string{"region", "queue"}, nil,
 	)
 
 	jobRunnable = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, "", "runnable_job"),
-		"Job in the queue that are in the RUNNABLE state",
-		[]string{"region", "id", "queue", "name"}, nil,
+		prometheus.BuildFQName(namespace, "", "runnable_jobs"),
+		"Jobs in the queue that are in the RUNNABLE state",
+		[]string{"region", "queue"}, nil,
 	)
 
 	jobStarting = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, "", "starting_job"),
-		"Job in the queue that are in the STARTING state",
-		[]string{"region", "id", "queue", "name"}, nil,
+		prometheus.BuildFQName(namespace, "", "starting_jobs"),
+		"Jobs in the queue that are in the STARTING state",
+		[]string{"region", "queue"}, nil,
 	)
 
 	jobRunning = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, "", "running_job"),
-		"Job in the queue that are in the RUNNING state",
-		[]string{"region", "id", "queue", "name"}, nil,
+		prometheus.BuildFQName(namespace, "", "running_jobs"),
+		"Jobs in the queue that are in the RUNNING state",
+		[]string{"region", "queue"}, nil,
 	)
 
 	jobFailed = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, "", "failed_job"),
-		"Job in the queue that are in the FAILED state",
-		[]string{"region", "id", "queue", "name"}, nil,
-		)
+		prometheus.BuildFQName(namespace, "", "failed_jobs"),
+		"Jobs in the queue that are in the FAILED state",
+		[]string{"region", "queue"}, nil,
+	)
 
 	jobSucceeded = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, "", "succeeded_job"),
-		"Job in the queue that are in the SUCCEEDED state",
-		[]string{"region", "id", "queue", "name"}, nil,
+		prometheus.BuildFQName(namespace, "", "succeeded_jobs"),
+		"Jobs in the queue that are in the SUCCEEDED state",
+		[]string{"region", "queue"}, nil,
 	)
 
 	jobDescMap = map[string]*prometheus.Desc{
 		batch.JobStatusSubmitted: jobSubmitted,
-		batch.JobStatusPending: jobPending,
-		batch.JobStatusRunnable: jobRunnable,
-		batch.JobStatusStarting: jobStarting,
-		batch.JobStatusRunning: jobRunning,
-		batch.JobStatusFailed: jobFailed,
+		batch.JobStatusPending:   jobPending,
+		batch.JobStatusRunnable:  jobRunnable,
+		batch.JobStatusStarting:  jobStarting,
+		batch.JobStatusRunning:   jobRunning,
+		batch.JobStatusFailed:    jobFailed,
 		batch.JobStatusSucceeded: jobSucceeded,
 	}
-
 )
 
 type JobResult struct {
-	id string
-	queue string
-	name string
+	id     string
+	queue  string
+	name   string
 	status string
 }
 
@@ -103,8 +110,8 @@ func New(region string) (*Collector, error) {
 	}
 
 	return &Collector{
-		client: batch.New(s),
-		region: region,
+		client:  batch.New(s),
+		region:  region,
 		timeout: timeout,
 	}, nil
 }
@@ -122,7 +129,7 @@ func (*Collector) Describe(ch chan<- *prometheus.Desc) {
 func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	r, err := c.client.DescribeJobQueuesWithContext(ctx, &batch.DescribeJobQueuesInput{})
+	r, err := DescribeJobQueuesWithContext(c, ctx, &batch.DescribeJobQueuesInput{})
 	if err != nil {
 		log.Printf("Error collecting metrics: %v\n", err)
 		return
@@ -134,7 +141,7 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 			defer wg.Done()
 			var results []JobResult
 			for _, s := range jobStatus {
-				r, err := c.client.ListJobsWithContext(ctx, &batch.ListJobsInput{JobQueue: d.JobQueueName,JobStatus: &s})
+				r, err := ListJobsWithContext(c, ctx, &batch.ListJobsInput{JobQueue: d.JobQueueName, JobStatus: &s})
 				if err != nil {
 					log.Printf("Error collecting job status metrics: %v\n", err)
 					continue
@@ -150,7 +157,16 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 }
 
 func (c *Collector) collectJobDetailStatus(ch chan<- prometheus.Metric, results []JobResult) {
+	statusMap := make(map[string](map[string]int))
 	for _, r := range results {
-		ch <- prometheus.MustNewConstMetric(jobDescMap[r.status], prometheus.GaugeValue, 1, c.region, r.id, r.queue, r.name)
+		if statusMap[r.status] == nil {
+			statusMap[r.status] = make(map[string]int)
+		}
+		statusMap[r.status][r.queue] += 1
+	}
+	for status, queueMap := range statusMap {
+		for queue, value := range queueMap {
+			ch <- prometheus.MustNewConstMetric(jobDescMap[status], prometheus.GaugeValue, float64(value), c.region, queue)
+		}
 	}
 }

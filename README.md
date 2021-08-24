@@ -28,10 +28,10 @@ Please set the access key and secret key of AWS or authentication by IAM role in
 ### Metrics
 |metric|labels|
 |---|---|
-|aws_batch_submitted_job|`region`, `id`, `queue`, `name`|
-|aws_batch_pending_job|`region`, `id`, `queue`, `name`|
-|aws_batch_runnable_job|`region`, `id`, `queue`, `name`|
-|aws_batch_starting_job|`region`, `id`, `queue`, `name`|
-|aws_batch_running_job|`region`, `id`, `queue`, `name`|
-|aws_batch_failed_job|`region`, `id`, `queue`, `name`|
-|aws_batch_succeeded_job|`region`, `id`, `queue`, `name`|
+|aws_batch_submitted_job|`region`, `queue`|
+|aws_batch_pending_job|`region`, `queue`|
+|aws_batch_runnable_job|`region`, `queue`|
+|aws_batch_starting_job|`region`, `queue`|
+|aws_batch_running_job|`region`, `queue`|
+|aws_batch_failed_job|`region`, `queue`|
+|aws_batch_succeeded_job|`region`, `queue`|
