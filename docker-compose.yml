@@ -1,0 +1,9 @@
+version: "3.1"
+services:
+  aws_batch_exporter:
+    image: mconf/aws-batch-exporter:latest
+    environment: 
+      - REGION=us-east-1
+      - SERVER_ADDR=:8080
+    ports:
+      - 8080:8080
