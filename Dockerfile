@@ -4,6 +4,7 @@ WORKDIR /opt/workdir/
 RUN GOOS=linux GOARCH=amd64 go build -o aws_batch_exporter cmd/aws_batch_exporter.go
 
 FROM alpine:3.23
+RUN apk --no-cache add ca-certificates
 RUN addgroup -S exporterg && adduser -S exporter -G exporterg
 USER exporter
 COPY --from=build-env /opt/workdir/aws_batch_exporter /opt/aws_batch_exporter
