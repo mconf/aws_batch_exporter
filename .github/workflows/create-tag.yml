@@ -1,0 +1,17 @@
+name: Create Tag
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to tag (e.g., 1.2.3 or v1.2.3)'
+        required: true
+        type: string
+
+jobs:
+  create-tag:
+    uses: mconf/mconf-ci-jobs/.github/workflows/all-create-tag.yml@main
+    with:
+      version: ${{ inputs.version }}
+      tag_prefix: 'v'
+    secrets: inherit

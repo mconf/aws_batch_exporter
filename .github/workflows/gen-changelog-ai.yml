@@ -1,0 +1,22 @@
+name: Generate Changelog (AI)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to generate changelog for (e.g., v1.2.3)'
+        required: true
+        type: string
+      previous_version:
+        description: 'Previous version to compare against (leave empty to auto-detect last tag)'
+        required: false
+        type: string
+
+jobs:
+  generate-changelog-ai:
+    uses: mconf/mconf-ci-jobs/.github/workflows/all-gen-changelog-ai.yml@main
+    with:
+      version: ${{ inputs.version }}
+      previous_version: ${{ inputs.previous_version }}
+      changelog_file: 'Changelog.md'
+    secrets: inherit
