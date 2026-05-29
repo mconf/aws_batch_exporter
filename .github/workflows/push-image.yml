@@ -10,3 +10,5 @@ jobs:
   push-scan:
     uses: mconf/mconf-ci-jobs/.github/workflows/lb-push-scan-image.yml@main
     secrets: inherit
+    with:
+      runs-on: '["ubuntu-22.04"]'
