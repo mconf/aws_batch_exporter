@@ -8,7 +8,10 @@ on:
 
 jobs:
   push-scan:
-    uses: mconf/mconf-ci-jobs/.github/workflows/lb-push-scan-image.yml@main
+    uses: mconf/mconf-ci-jobs/.github/workflows/all-build-push-scan-harbor.yml@main
     secrets: inherit
     with:
       runs-on: '["ubuntu-22.04"]'
+      image_name: aws-batch-exporter
+      organization: ops
+      trivy-scanners: "vuln,config"
